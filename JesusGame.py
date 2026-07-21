@@ -178,10 +178,13 @@ class Character(pygame.sprite.Sprite):
             self.move(ai_moving_left, ai_moving_right)
             self.update_action(1)# running
             self.move_counter += 1
+            print("endring 1")
          
         if self.move_counter > TILE_SIZE:
             self.direction *= -1
             self.move_counter *= -1
+
+            print("endring 2")
         
 
         
