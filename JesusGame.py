@@ -95,7 +95,7 @@ class Character(pygame.sprite.Sprite):
         self.idling = False
 
         # animation folders
-        all_animations = ['Idle', 'Run', 'Death']
+        all_animations = ['Idle', 'Run', 'Jump', 'Death']
 
         for animation in all_animations:
             # reset temp list of images
@@ -178,7 +178,6 @@ class Character(pygame.sprite.Sprite):
             self.move(ai_moving_left, ai_moving_right)
             self.update_action(1)# running
             self.move_counter += 1
-            print("endring 1")
          
         if self.move_counter > TILE_SIZE:
             self.direction *= -1
@@ -531,7 +530,7 @@ while run:
     player.draw()
 
     for enemy in enemy_group:
-        enemy.ai()
+        #enemy.ai()
         enemy.all_updates()
         enemy.draw()
 
