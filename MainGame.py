@@ -1,6 +1,7 @@
 import pygame
 import time 
 import os
+import random 
 pygame.init()
 
 
@@ -93,6 +94,9 @@ class Character(pygame.sprite.Sprite):
         #ai 
         self.move_counter = 0
         self.idling = False
+        self.idle_counter = 0
+        #ai vision of the player
+        self.vision = pygame.Rect(0, 0, 200, 20)
 
         # animation folders
         all_animations = ['Idle', 'Run', 'Jump', 'Death']
@@ -170,27 +174,42 @@ class Character(pygame.sprite.Sprite):
     def ai(self):
         #ai movement logic
         if self.Alive and player.Alive:
-            if self.direction == 1:
-                ai_moving_right = True
+            if self.idling == False and random.randint(1,200) == 10:
+                self.idling = True
+                self.idle_counter = 50
+                self.update_action(0)# idle
+
+            # check if ai is near the player
+            if self.vision.colliderect(player.rect):
+                self.update_action(0)# idle
+                self.attack() # attack player
+             
+
             else:
-                ai_moving_right = False
-            ai_moving_left = not False
-            self.move(ai_moving_left, ai_moving_right)
-            self.update_action(1)# running
-            self.move_counter += 1
-         
-        if self.move_counter > TILE_SIZE:
-            self.direction *= -1
-            self.move_counter *= -1
 
-            print("endring 2")
+                if self.idling == False:
+                    if self.direction == 1:
+                        ai_moving_right = True
+                    else:
+                        ai_moving_right = False
+                    ai_moving_left = True
+                    self.move(ai_moving_left, ai_moving_right)
+                    self.update_action(1)# running
+                    self.move_counter += 1
+                    #update vision as enemy moves
+                    self.vision.center = (self.rect.centerx + 75 * self.direction, self.rect.centery)
+                    
+                
+                    if self.move_counter > TILE_SIZE:
+                        self.move_counter *= -1
+                        self.direction *= -1
+                else:
+                    self.idle_counter -= 1
+                    print(self.idle_counter)
+                    if self.idle_counter <= 0:
+                        self.idling = False
+                
         
-
-        
-      
-
-        
-
 
     # attacking starting point and attack replenish
     def attack(self):
@@ -500,7 +519,7 @@ player = Character("player", 200, 400, 2, 8, 10, 5)
 health_bar = HealthBar(105, 15, player.health, player.health)
 
 enemy1 = Character("enemy", 600, 350, 2, 2, 5, 5)
-enemy2 = Character("enemy", 700, 350, 2, 2, 5, 5)
+enemy2 = Character("enemy", 300, 350, 2, 2, 5, 5)
 #adding enemy to the group
 enemy_group.add(enemy1)
 enemy_group.add(enemy2)
@@ -530,7 +549,7 @@ while run:
     player.draw()
 
     for enemy in enemy_group:
-        #enemy.ai()
+        enemy.ai()
         enemy.all_updates()
         enemy.draw()
 
