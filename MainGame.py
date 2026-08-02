@@ -2,6 +2,8 @@ import pygame
 import time 
 import os
 import random 
+import csv
+import pickle
 pygame.init()
 
 
@@ -17,7 +19,13 @@ FPS = pygame.time.Clock()
 
 # game variables
 GRAVITY = 0.75
-TILE_SIZE = 40
+
+# amount of rows and colums and tile size
+TILE_TYPES = 20
+ROWS = 12
+MAX_COL = 150
+TILE_SIZE = SCREEN_HEIGHT // ROWS
+level = 1
 
 
 # game movements
@@ -27,6 +35,14 @@ attack = False
 slash_attack = False
 throw = False
 throwable_in_air = False
+
+# storing tiles in a list
+tile_images = []
+# load all tiles 
+for j in range(TILE_TYPES + 1):
+    img = pygame.image.load(f"/Users/eric.m.gichohi/Documents/Tiles/{j}.png").convert_alpha()
+    img = pygame.transform.scale(img, (int(TILE_SIZE), int(TILE_SIZE)))
+    tile_images.append(img)
 
 # load images
 # bullet
@@ -63,7 +79,7 @@ def draw_BG():
 
 
 def draw_font(text, font, text_colour, x , y):
-    image = font.render(text, font,text_colour)
+    image = font.render(text, font, text_colour)
     SCREEN.blit(image, (x,y))
 
 
@@ -183,8 +199,8 @@ class Character(pygame.sprite.Sprite):
             if self.vision.colliderect(player.rect):
                 self.update_action(0)# idle
                 self.attack() # attack player
-             
-
+            
+            
             else:
 
                 if self.idling == False:
@@ -198,7 +214,7 @@ class Character(pygame.sprite.Sprite):
                     self.move_counter += 1
                     #update vision as enemy moves
                     self.vision.center = (self.rect.centerx + 75 * self.direction, self.rect.centery)
-                    
+
                 
                     if self.move_counter > TILE_SIZE:
                         self.move_counter *= -1
@@ -256,7 +272,7 @@ class Character(pygame.sprite.Sprite):
             self.frame_index = 0
             self.update_time = pygame.time.get_ticks()
 
-
+    
     # check if player is alive
     def check_alive(self):
         if self.health <= 0:
@@ -267,6 +283,58 @@ class Character(pygame.sprite.Sprite):
 
     def draw(self):
         SCREEN.blit(pygame.transform.flip(self.image, self.flip, False), self.rect)
+
+
+class World():
+    def __init__(self):
+        #level obstacles 
+        self.obstacle_list = []
+
+    def update_world(self, data):
+        for x, row in enumerate(data):
+            for y, tile in  enumerate(row):
+                if tile >= 0:
+                    img = tile_images[tile]
+                    img_rect = img.get_rect()
+                    img_rect.x = y * TILE_SIZE
+                    img_rect.y = x * TILE_SIZE
+                    tile_data = (img, img_rect)
+                    self.obstacle_list.append(tile_data)
+                    
+                    # surface area
+                    if tile >= 0 and tile <= 8:
+                        pass   
+                    # water surface area
+                    elif tile >= 9 and tile <= 10:
+                        pass
+                    # decorations
+                    elif tile >= 11 and tile <= 14:
+                        pass
+
+                    # player data
+                    if tile == 15:
+                        # initialzing player
+                        player =  Character("player", x * TILE_SIZE,  y * TILE_SIZE, 2, 8, 10, 5)
+                        health_bar = HealthBar(105, 15, player.health, player.health)
+                    
+                    # enemy data
+                    elif tile == 16:
+                        # initialzing enemy
+                        enemy = Character("enemy", x * TILE_SIZE,  y * TILE_SIZE, 2, 2, 5, 5)
+                        enemy_group.add(enemy)
+                    # initialize ammo box
+                    elif tile == 17:
+                        AmmoBox = PickupBox("Ammo", x * TILE_SIZE,  y * TILE_SIZE)
+                        item_pickup_group.add(AmmoBox)
+                    # initialize health box
+                    elif tile == 19:
+                        HealthBox = PickupBox("Health", x * TILE_SIZE,  y * TILE_SIZE)
+                        item_pickup_group.add(HealthBox)
+                    # exit
+                    elif tile == 20:
+                        pass
+        
+        return player, health_bar
 
 class PickupBox(pygame.sprite.Sprite):
     def __init__(self,item_type, x, y):
@@ -311,8 +379,6 @@ class HealthBar():
         pygame.draw.rect(SCREEN,RED, (self.x, self.y, 150, 20))
         pygame.draw.rect(SCREEN,GREEN, (self.x, self.y, 150 * ratio , 20))
      
-
-
 
 class Weapon(pygame.sprite.Sprite):
     def __init__(self, x, y, direction):
@@ -506,26 +572,31 @@ throwable_group = pygame.sprite.Group()
 explosion_group = pygame.sprite.Group()
 enemy_group = pygame.sprite.Group()
 
-#item pick up
-itemBox = PickupBox("Health", 500, 350)
-itemBox2 = PickupBox("Ammo", 650, 350)
+# loading in the world
+world_data = []
+for x in range(ROWS + 1):
+    row = [-1] * MAX_COL
+    world_data.append(row)
 
-item_pickup_group.add(itemBox)
-item_pickup_group.add(itemBox2)
+# load data in from a file
+# reset scroll to the start
+scroll = 0
+'''world_data = []
+pickle_in = open(f"Level_{level}_data_csv", "rb")
+world_data = pickle.load(pickle_in)'''
 
-# initialzing characters
-player = Character("player", 200, 400, 2, 8, 10, 5)
-# health bar
-health_bar = HealthBar(105, 15, player.health, player.health)
+with open(f"Level_{level}_data_csv", "r", newline = '') as csvfile:
+    reader = csv.reader(csvfile, delimiter = ',')
+    for y, row in enumerate(reader):
+        for x, col in enumerate(row):
+            world_data[y][x] = int(col)
 
-enemy1 = Character("enemy", 600, 350, 2, 2, 5, 5)
-enemy2 = Character("enemy", 300, 350, 2, 2, 5, 5)
-#adding enemy to the group
-enemy_group.add(enemy1)
-enemy_group.add(enemy2)
+print(f"level {level} is loaded! ")
 
 
-#def main():
+world = World()
+player, health_bar = world.update_world(world_data)
+
 # main gameloop
 run = True
 while run:
@@ -543,7 +614,7 @@ while run:
     draw_font(f"GREANDE: ", FONT, WHITE, 10,80)
     for x in range(player.throwables):
         SCREEN.blit(throwable_image, (125 + (x * 15), 85))
-        
+                
 
     player.all_updates()
     player.draw()
@@ -570,7 +641,6 @@ while run:
     explosion_group.draw(SCREEN)
     explosion_group.update()
     
-
     # drawing items boxes
     item_pickup_group.draw(SCREEN)
     item_pickup_group.update()
@@ -670,5 +740,4 @@ while run:
 
 pygame.quit()
 
-'''if __name__ == "__main__":
-    main()'''
+
