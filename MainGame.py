@@ -4,6 +4,7 @@ import os
 import random 
 import csv
 import pickle
+import Button_main
 pygame.init()
 
 
@@ -15,23 +16,26 @@ SCREEN = pygame.display.set_mode((SCREEN_WIDTH,SCREEN_HEIGHT))
 pygame.display.set_caption("Black Jesus ressurect")
 
 BG = pygame.transform.scale(pygame.image.load("summer5.png"),(SCREEN_WIDTH,SCREEN_HEIGHT))
-FPS = pygame.time.Clock()
+CLOCK = pygame.time.Clock()
+FPS = 60
 
-# game variables
+
+# game constant variables
 GRAVITY = 0.75
+MAX_LEVELS = 2
 
-# amount of tiles, rows and colums
+# amount of tiles, rows, colums and tile size
 TILE_TYPES = 20
 ROWS = 12
 MAX_COL = 150
-SCROLL_THRESH = 200
+SCROLL_THRESH = 300
 TILE_SIZE = SCREEN_HEIGHT // ROWS
 
-# level counter
+# game variables
 level = 1
 screen_scroll = 0
 bg_scroll = 0
-
+start_game = False
 
 
 # game movements
@@ -56,6 +60,12 @@ pine_1 = pygame.image.load("/Users/eric.m.gichohi/Documents/background/pine1.png
 pine_2 = pygame.image.load("/Users/eric.m.gichohi/Documents/background/pine2.png").convert_alpha()
 mountain = pygame.image.load("/Users/eric.m.gichohi/Documents/background/mountain.png").convert_alpha()
 sky = pygame.image.load("/Users/eric.m.gichohi/Documents/background/sky_cloud.png").convert_alpha()
+
+#load and save images
+start_image = pygame.image.load("/Users/eric.m.gichohi/Documents/shooter_assets/img/start_btn.png").convert_alpha()
+restart_image = pygame.image.load("/Users/eric.m.gichohi/Documents/shooter_assets/img/restart_btn.png").convert_alpha()
+exit_image = pygame.image.load("/Users/eric.m.gichohi/Documents/shooter_assets/img/exit_btn.png").convert_alpha()
+
 
 # load images
 # bullet
@@ -86,6 +96,28 @@ item_boxes = {
     "Ammo": Ammo_box_image
 }
 
+# resets the game assets
+def restart_game():
+    weapon_group.empty()
+    item_pickup_group.empty()
+    slashAttack_group.empty()
+    throwable_group.empty()
+    explosion_group.empty()
+    enemy_group.empty()
+    decoration_group.empty()
+    water_group.empty()
+    exit_group.empty()
+
+    # resets world data
+    # loading in world
+    data = []
+    for x in range(ROWS + 1):
+        row = [-1] * MAX_COL
+        data.append(row)
+
+    return data
+
+
 # drawing background
 def draw_BG():
     SCREEN.fill(GREEN)
@@ -94,10 +126,10 @@ def draw_BG():
     image_width = sky.get_width()
     
     for x in range(4):
-        SCREEN.blit(sky, ((x * image_width) -scroll * 0.5, 0))
-        SCREEN.blit(mountain, ((x * image_width) -scroll * 0.6, SCREEN_HEIGHT - mountain.get_height() - 200))
-        SCREEN.blit(pine_2, ((x * image_width) -scroll * 0.7, SCREEN_HEIGHT - pine_2.get_height() - 30))
-        SCREEN.blit(pine_1, ((x * image_width) -scroll * 0.8, SCREEN_HEIGHT - pine_1.get_height() - 1))
+        SCREEN.blit(sky, ((x * image_width) - bg_scroll * 0.4, 0))
+        SCREEN.blit(mountain, ((x * image_width) -bg_scroll * 0.6, SCREEN_HEIGHT - mountain.get_height() - 250))
+        SCREEN.blit(pine_2, ((x * image_width) -bg_scroll * 0.8, SCREEN_HEIGHT - pine_2.get_height() - 25))
+        SCREEN.blit(pine_1, ((x * image_width) -bg_scroll * 1, SCREEN_HEIGHT - pine_1.get_height() + 5))
 
 
 def draw_font(text, font, text_colour, x , y):
@@ -176,6 +208,7 @@ class Character(pygame.sprite.Sprite):
         # reset movement variables
         dx = 0
         dy = 0
+        screen_scroll = 0
 
         # moving left
         if left:
@@ -207,6 +240,10 @@ class Character(pygame.sprite.Sprite):
             # check collision in the x direction
             if tile[1].colliderect(self.rect.x + dx, self.rect.y, self.width, self.height):
                 dx = 0
+                # check collision with wall for ai
+                if self.char_type == "enemy":
+                    self.direction *= -1
+                    self.move_counter = 0
             # check collision in the y direction
             if tile[1].colliderect(self.rect.x, self.rect.y + dy, self.width, self.height):
                 # check if collision from bottom up, jumping
@@ -224,9 +261,41 @@ class Character(pygame.sprite.Sprite):
         self.rect.x += dx
         self.rect.y += dy
 
+        # check if player in water
+        if pygame.sprite.spritecollide(self, water_group, False):
+            self.health = 0
+            dx = 0
+       
+
+        # check if player falls off the map
+        if self.rect.bottom > SCREEN_HEIGHT:
+            self.health = 0
+            dx = 0
+
+        # check if level completed
+        level_completed = False
+        if pygame.sprite.spritecollide(self, exit_group, False):
+            level_completed = True
+            
+
+        # check if player is on the edge of the map
+        if self.char_type == "player":
+            if self.rect.left + dx < 0 or self.rect.right + dx > SCREEN_WIDTH:
+                self.rect.x = 0
+         
+        # update scroll based on players position
+        if self.char_type == "player":
+            if ((self.rect.right > SCREEN_WIDTH - SCROLL_THRESH and bg_scroll < (world.world_length * TILE_SIZE) -  SCREEN_WIDTH) or 
+                (self.rect.left < SCROLL_THRESH and bg_scroll > abs(dx))):
+                self.rect.x -= dx
+                screen_scroll = -dx
+            
+        return screen_scroll, level_completed
+
     def ai(self):
         #ai movement logic
         if self.Alive and player.Alive:
+            # checking when to idle
             if self.idling == False and random.randint(1,200) == 10:
                 self.idling = True
                 self.idle_counter = 50
@@ -237,9 +306,8 @@ class Character(pygame.sprite.Sprite):
                 self.update_action(0)# idle
                 self.attack() # attack player
             
-            
             else:
-
+                # stopping idling and changing direction 
                 if self.idling == False:
                     if self.direction == 1:
                         ai_moving_right = True
@@ -249,6 +317,7 @@ class Character(pygame.sprite.Sprite):
                     self.move(ai_moving_left, ai_moving_right)
                     self.update_action(1)# running
                     self.move_counter += 1
+
                     #update vision as enemy moves
                     self.vision.center = (self.rect.centerx + 75 * self.direction, self.rect.centery)
 
@@ -260,6 +329,9 @@ class Character(pygame.sprite.Sprite):
                     self.idle_counter -= 1
                     if self.idle_counter <= 0:
                         self.idling = False
+
+        #scroll
+        self.rect.x += screen_scroll
                 
     # attacking starting point and attack replenish
     def attack(self):
@@ -325,6 +397,9 @@ class World():
         self.obstacle_list = []
 
     def update_world(self, data):
+        # length of list to track the end of the map
+        self.world_length = len(data[0])
+
         for x, row in enumerate(data):
             for y, tile in  enumerate(row):
                 if tile >= 0:
@@ -350,7 +425,7 @@ class World():
                     # player data initialized
                     elif tile == 15:
                         # initialzing player
-                        player =  Character("player", y * TILE_SIZE,  x * TILE_SIZE, 2, 8, 10, 5)
+                        player =  Character("player", y * TILE_SIZE,  x * TILE_SIZE, 2, 5, 10, 5)
                         health_bar = HealthBar(105, 15, player.health, player.health)
                     
                     # enemy data initialized
@@ -376,6 +451,7 @@ class World():
     # draws obstacles tiles in the world
     def draw_world(self):
         for tile in self.obstacle_list:
+            tile[1][0] += screen_scroll
             SCREEN.blit(tile[0],tile[1])
 
 
@@ -386,6 +462,9 @@ class Decorations(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.midtop = (x + TILE_SIZE // 2, y + (TILE_SIZE - self.image.get_height()))
 
+    # updates scroll function for objects
+    def update(self):
+        self.rect.x += screen_scroll
 
 class Water(pygame.sprite.Sprite):
     def __init__(self,image, x, y):
@@ -394,6 +473,9 @@ class Water(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.midtop = (x + TILE_SIZE // 2, y + (TILE_SIZE - self.image.get_height()))
 
+    # updates scroll function for objects
+    def update(self):
+        self.rect.x += screen_scroll
 
 class Exit(pygame.sprite.Sprite):
     def __init__(self,image, x, y):
@@ -402,6 +484,9 @@ class Exit(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.midtop = (x + TILE_SIZE // 2, y + (TILE_SIZE - self.image.get_height()))
 
+    # updates scroll function for objects
+    def update(self):
+        self.rect.x += screen_scroll
 
 class PickupBox(pygame.sprite.Sprite):
     def __init__(self,item_type, x, y):
@@ -413,7 +498,11 @@ class PickupBox(pygame.sprite.Sprite):
         self.rect.midtop = (x + TILE_SIZE // 2, y + (TILE_SIZE - self.image.get_height()))
 
 
+
     def update(self):
+        # updates scroll function for objects
+        self.rect.x += screen_scroll
+
         # check if the player has picked up box
         if pygame.sprite.collide_rect(self, player):
 
@@ -462,7 +551,7 @@ class Weapon(pygame.sprite.Sprite):
 
     # moves weapon rate and direction
     def update(self):
-        self.rect.x += (self.direction * self.weapon_speed)
+        self.rect.x += (self.direction * self.weapon_speed) + screen_scroll
 
         # changing the weapons direction
         weapon_flip = pygame.transform.flip(self.image, True, False)
@@ -585,7 +674,7 @@ class Throwable(pygame.sprite.Sprite):
    
 
         # update throwable direction
-        self.rect.x += dx
+        self.rect.x += dx + screen_scroll
         self.rect.y += dy
 
         # exlposion animation intialized
@@ -630,6 +719,7 @@ class Explosion(pygame.sprite.Sprite):
         self.counter = 0
     
     def update(self):
+        self.rect.x += screen_scroll
         EXPLOSION_SPEED = 6
 
         # update explosion animation
@@ -646,6 +736,12 @@ class Explosion(pygame.sprite.Sprite):
             else:
                 self.image = self.images[self.frame_index]
 
+
+# initialze buttons
+start_button = Button_main.Button((SCREEN_WIDTH // 2) - 300, 200, start_image , 1)
+exit_button = Button_main.Button((SCREEN_WIDTH // 2) + 50, 200, exit_image , 1)
+restart_button = Button_main.Button((SCREEN_WIDTH // 2) -90, 230, restart_image , 2)
+
 # sprite Groups, quicker way to update and draw
 weapon_group = pygame.sprite.Group()
 item_pickup_group = pygame.sprite.Group()
@@ -657,7 +753,7 @@ decoration_group = pygame.sprite.Group()
 water_group = pygame.sprite.Group()
 exit_group = pygame.sprite.Group()
 
-# loading in the world
+# loading in world
 world_data = []
 for x in range(ROWS + 1):
     row = [-1] * MAX_COL
@@ -666,7 +762,6 @@ for x in range(ROWS + 1):
 # load data in from a file
 # reset scroll to the start
 scroll = 0
-
 
 with open(f"Level_{level}_data_csv", "r", newline = '') as csvfile:
     reader = csv.reader(csvfile, delimiter = ',')
@@ -680,97 +775,143 @@ print(f"level {level} is loaded! ")
 world = World()
 player, health_bar = world.update_world(world_data)
 
+
 # main gameloop
 run = True
 while run:
-   
-    FPS.tick(30)
-    # draw background
-    draw_BG()
+    CLOCK.tick(FPS)
+    # main menu
+    if start_game == False:
+        SCREEN.fill(GREEN)
 
-    # drawimng world level
-    world.draw_world()
+        #main menu buttons
+        if start_button.draw_button(SCREEN):
+            start_game = True
+            print("Game started!")
+        if exit_button.draw_button(SCREEN):
+            run = False
+            print("Game exit!")
 
-    draw_font(f"HEALTH: ", FONT, GREEN, 10,15)
-    health_bar.draw(player.health)
+    else:
+        # draw background
+        draw_BG()
 
-    draw_font(f"AMMO: ", FONT, WHITE, 10,45)
-    for x in range(player.ammo):
-        SCREEN.blit(weapon_image, (75 + (x * 15), 40))
+        # drawimng world level
+        world.draw_world()
 
-    draw_font(f"GREANDE: ", FONT, WHITE, 10,80)
-    for x in range(player.throwables):
-        SCREEN.blit(throwable_image, (125 + (x * 15), 85))
-                
+        draw_font(f"HEALTH: ", FONT, GREEN, 10,15)
+        health_bar.draw(player.health)
 
-    player.all_updates()
-    player.draw()
+        draw_font(f"AMMO: ", FONT, WHITE, 10,45)
+        for x in range(player.ammo):
+            SCREEN.blit(weapon_image, (75 + (x * 15), 40))
 
-    for enemy in enemy_group:
-        enemy.ai()
-        enemy.all_updates()
-        enemy.draw()
+        draw_font(f"GREANDE: ", FONT, WHITE, 10,80)
+        for x in range(player.throwables):
+            SCREEN.blit(throwable_image, (125 + (x * 15), 85))
+                    
 
-    # drawing weapon attack
-    weapon_group.draw(SCREEN)
-    weapon_group.update()
+        player.all_updates()
+        player.draw()
 
-    # drawing weapon attack
-    slashAttack_group.draw(SCREEN)
-    slashAttack_group.update()
-    
-    # drawing throwable attack
-    throwable_group.draw(SCREEN)
-    throwable_group.update()
-    
+        for enemy in enemy_group:
+            enemy.ai()
+            enemy.all_updates()
+            enemy.draw()
 
-    # drawing explosion
-    explosion_group.draw(SCREEN)
-    explosion_group.update()
-    
-    # drawing items boxes
-    item_pickup_group.draw(SCREEN)
-    item_pickup_group.update()
+        # drawing weapon attack
+        weapon_group.draw(SCREEN)
+        weapon_group.update()
 
-    # updating level objects and drawing
-    decoration_group.draw(SCREEN)
-    decoration_group.update()
-
-    
-    water_group.draw(SCREEN)
-    water_group.update()
-
-    exit_group.draw(SCREEN)
-    exit_group.update()
-
-
-    # updates players action
-    if player.Alive:
-        player.move(move_left, move_right)
-
-        # attack action
-        if slash_attack:
-            player.slash_attacking()
+        # drawing weapon attack
+        slashAttack_group.draw(SCREEN)
+        slashAttack_group.update()
         
-        elif attack:
-            player.attack()
+        # drawing throwable attack
+        throwable_group.draw(SCREEN)
+        throwable_group.update()
+        
 
-        # throwing throwables
-        elif throw and throwable_in_air == False and player.throwables > 0:
-            throw = Throwable(player.rect.centerx + (player.rect.size[0] * 1.2 * player.direction), player.rect.top , player.direction)
-            throwable_group.add(throw)
-            player.throwables -= 1
-            throwable_in_air = True
+        # drawing explosion
+        explosion_group.draw(SCREEN)
+        explosion_group.update()
+        
+        # drawing items boxes
+        item_pickup_group.draw(SCREEN)
+        item_pickup_group.update()
 
-        elif player.in_the_air:
-            player.update_action(2)#2 jumping action
+        # updating level objects and drawing
+        decoration_group.draw(SCREEN)
+        decoration_group.update()
 
-        elif move_left or move_right:# 1 left and right action
-            player.update_action(1)
+        
+        water_group.draw(SCREEN)
+        water_group.update()
 
+        exit_group.draw(SCREEN)
+        exit_group.update()
+
+
+        # updates players action
+        if player.Alive:
+            screen_scroll, level_completed = player.move(move_left, move_right)
+            bg_scroll -= screen_scroll
+
+            if level_completed:
+                level += 1
+                bg_scroll = 0
+                world_data = restart_game()
+                if level <= MAX_LEVELS:
+                    # loads world data
+                    with open(f"Level_{level}_data_csv", "r", newline = '') as csvfile:
+                        reader = csv.reader(csvfile, delimiter = ',')
+                        for y, row in enumerate(reader):
+                            for x, col in enumerate(row):
+                                world_data[y][x] = int(col)
+                        # initializing world 
+                        world = World()
+                        player, health_bar = world.update_world(world_data)
+                        print("New level started!")
+
+            # attack action
+            if slash_attack:
+                player.slash_attacking()
+            
+            elif attack:
+                player.attack()
+
+            # throwing throwables
+            elif throw and throwable_in_air == False and player.throwables > 0:
+                throw = Throwable(player.rect.centerx + (player.rect.size[0] * 1.2 * player.direction), player.rect.top , player.direction)
+                throwable_group.add(throw)
+                player.throwables -= 1
+                throwable_in_air = True
+
+            elif player.in_the_air:
+                player.update_action(2)#2 jumping action
+
+            elif move_left or move_right:# 1 left and right action
+                player.update_action(1)
+
+            else:
+                player.update_action(0)#0 idle action
         else:
-            player.update_action(0)#0 idle action
-
+            screen_scroll = 0
+            if restart_button.draw_button(SCREEN):
+                bg_scroll = 0
+                
+                #empty world data
+                world_data = restart_game()
+                # loads world data
+                with open(f"Level_{level}_data_csv", "r", newline = '') as csvfile:
+                    reader = csv.reader(csvfile, delimiter = ',')
+                    for y, row in enumerate(reader):
+                        for x, col in enumerate(row):
+                            world_data[y][x] = int(col)
+                    # initializing world 
+                    world = World()
+                    player, health_bar = world.update_world(world_data)
+                    print("Game restarted!")
 
     for event in pygame.event.get():
         # quit game
