@@ -1,2 +1,2 @@
 # GameDev
-A 2d shooter game made with the help of a youtube tutorial.
+A 2d shooter game, currently working on more features.
