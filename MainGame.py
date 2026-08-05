@@ -1,11 +1,14 @@
 import pygame
+from pygame import mixer
 import time 
 import os
 import random 
 import csv
-import pickle
 import Button_main
+
+# initialize pygame module and music module
 pygame.init()
+mixer.init()
 
 
 SCREEN_WIDTH = 1080
@@ -15,7 +18,6 @@ SCREEN_HEIGHT = int(SCREEN_WIDTH * 0.5)
 SCREEN = pygame.display.set_mode((SCREEN_WIDTH,SCREEN_HEIGHT))
 pygame.display.set_caption("Black Jesus ressurect")
 
-BG = pygame.transform.scale(pygame.image.load("summer5.png"),(SCREEN_WIDTH,SCREEN_HEIGHT))
 CLOCK = pygame.time.Clock()
 FPS = 60
 
@@ -36,15 +38,27 @@ level = 1
 screen_scroll = 0
 bg_scroll = 0
 start_game = False
+intro_fade = False
 
 
-# game movements
+# game movements actions
 move_left = False
 move_right = False
 attack = False
 slash_attack = False
 throw = False
 throwable_in_air = False
+
+# load music and sound
+pygame.mixer.music.load('/Users/eric.m.gichohi/Documents/shooter_assets/audio/music2.mp3')
+pygame.mixer.music.set_volume(0.1)
+pygame.mixer.music.play(-1, 0.0, 5000)
+jump_fx = pygame.mixer.Sound('/Users/eric.m.gichohi/Documents/shooter_assets/audio/jump.wav')
+jump_fx.set_volume(0.05)
+grenade_fx = pygame.mixer.Sound('/Users/eric.m.gichohi/Documents/shooter_assets/audio/grenade.wav')
+grenade_fx.set_volume(0.05)
+shot_fx = pygame.mixer.Sound('/Users/eric.m.gichohi/Documents/shooter_assets/audio/shot.wav')
+shot_fx.set_volume(0.05)
 
 # storing tiles in a list
 tile_images = []
@@ -67,36 +81,33 @@ restart_image = pygame.image.load("/Users/eric.m.gichohi/Documents/shooter_asset
 exit_image = pygame.image.load("/Users/eric.m.gichohi/Documents/shooter_assets/img/exit_btn.png").convert_alpha()
 
 
-# load images
-# bullet
+# load weapon images 
 slash_image = pygame.image.load("/Users/eric.m.gichohi/Documents/player/Attack/0.png").convert_alpha()
 weapon_image = pygame.image.load("/Users/eric.m.gichohi/Documents/player/all_sprites/FB00_nyknck/FB00_nyknck/FB001.png").convert_alpha()
 throwable_image = pygame.image.load("/Users/eric.m.gichohi/Documents/player/Explosions/grenade.png").convert_alpha()
 health_image = pygame.transform.scale(pygame.image.load("/Users/eric.m.gichohi/Documents/player/world_design/heart.png"),(15,15))
 
-#pick up boxes images
+#pick-up boxes images
 health_box_image =  pygame.transform.scale(pygame.image.load("/Users/eric.m.gichohi/Documents/Tiles/19.png"),(25,25))
 Ammo_box_image = pygame.image.load("/Users/eric.m.gichohi/Documents/Tiles/17.png").convert_alpha()
 
 # RGB 
-RED = (255,0,0)
+RED = (102, 0, 0)
 GREEN = (0, 100, 0)
 BLUE = (0,0,255)
 WHITE = (255, 255, 255)
 BLACK = (0,0,0)
 
-
-
-#fonts
+#font name and size
 FONT = pygame.font.SysFont("press_start_2p.ttf", 30)
 
-#item pick ups
+#item pick-ups
 item_boxes = {
     "Health":   health_box_image, 
     "Ammo": Ammo_box_image
 }
 
-# resets the game assets
+# resets the game assets and world
 def restart_game():
     weapon_group.empty()
     item_pickup_group.empty()
@@ -160,7 +171,7 @@ class Character(pygame.sprite.Sprite):
         self.update_time = pygame.time.get_ticks()
         self.action = 0
 
-        #ai 
+        #ai variables
         self.move_counter = 0
         self.idling = False
         self.idle_counter = 0
@@ -330,19 +341,20 @@ class Character(pygame.sprite.Sprite):
                     if self.idle_counter <= 0:
                         self.idling = False
 
-        #scroll
+        # ai charaters stay on their positions while screen is scrolling
         self.rect.x += screen_scroll
                 
     # attacking starting point and attack replenish
     def attack(self):
         if self.attack_cooldown == 0 and self.ammo > 0:
+            shot_fx.play()
             self.attack_cooldown = 25
             attack = Weapon(self.rect.centerx + (1.2 * self.rect.size[0] * self.direction), self.rect.centery, self.direction)
             weapon_group.add(attack)
             # reduce ammo
             self.ammo -= 1
                 
-
+    # attack with slash 
     def slash_attacking(self):
         if self.attack_cooldown == 0:
             self.attack_cooldown = 30
@@ -700,7 +712,7 @@ class Throwable(pygame.sprite.Sprite):
                         self.kill()
                         print(enemy.health)
 
-
+# explosion animation class
 class Explosion(pygame.sprite.Sprite):
     def __init__(self, x, y):
         pygame.sprite.Sprite.__init__(self)
@@ -732,15 +744,44 @@ class Explosion(pygame.sprite.Sprite):
             
             # if animation has reached end of the list, reset back to start
             if self.frame_index >= len(self.images) - 1:
+                grenade_fx.play()
                 self.kill()
             else:
                 self.image = self.images[self.frame_index]
 
+class ScreenFade():
+    def __init__(self, direction, colour, speed):
+        self.direction = direction
+        self.colour = colour
+        self.speed = speed
+        self.fade_counter = 0
+
+    def fade(self):
+        # check if fade is complete
+        fade_complete = False
+        # speed of the rectangle filler
+        self.fade_counter += self.speed
+        if self.direction == 1: #intro screen
+            pygame.draw.rect(SCREEN, self.colour, (0 - self.fade_counter, 0 , SCREEN_WIDTH // 2, SCREEN_HEIGHT))
+            pygame.draw.rect(SCREEN, self.colour, (SCREEN_WIDTH // 2 + self.fade_counter, 0, SCREEN_WIDTH, SCREEN_HEIGHT))
+            pygame.draw.rect(SCREEN, self.colour, (0, 0 - self.fade_counter, SCREEN_WIDTH, SCREEN_HEIGHT // 2))
+            pygame.draw.rect(SCREEN, self.colour, (0, SCREEN_HEIGHT // 2 + self.fade_counter, SCREEN_WIDTH, SCREEN_HEIGHT))
+
+        if self.direction == 2: #death screen, vertical screen fade
+            pygame.draw.rect(SCREEN, self.colour, (0,0, SCREEN_WIDTH, 0 + self.fade_counter) )
+        if self.fade_counter >= SCREEN_WIDTH:
+            fade_complete = True
+
+        return fade_complete
+
+# initialize screen fade
+introFade = ScreenFade(1, BLACK, 5)
+deathFade = ScreenFade(2, RED, 6)
 
 # initialze buttons
 start_button = Button_main.Button((SCREEN_WIDTH // 2) - 300, 200, start_image , 1)
 exit_button = Button_main.Button((SCREEN_WIDTH // 2) + 50, 200, exit_image , 1)
-restart_button = Button_main.Button((SCREEN_WIDTH // 2) -90, 230, restart_image , 2)
+restart_button = Button_main.Button((SCREEN_WIDTH // 2) -105, 230, restart_image , 2)
 
 # sprite Groups, quicker way to update and draw
 weapon_group = pygame.sprite.Group()
@@ -760,9 +801,6 @@ for x in range(ROWS + 1):
     world_data.append(row)
 
 # load data in from a file
-# reset scroll to the start
-scroll = 0
-
 with open(f"Level_{level}_data_csv", "r", newline = '') as csvfile:
     reader = csv.reader(csvfile, delimiter = ',')
     for y, row in enumerate(reader):
@@ -780,6 +818,7 @@ player, health_bar = world.update_world(world_data)
 run = True
 while run:
     CLOCK.tick(FPS)
+
     # main menu
     if start_game == False:
         SCREEN.fill(GREEN)
@@ -787,6 +826,7 @@ while run:
         #main menu buttons
         if start_button.draw_button(SCREEN):
             start_game = True
+            start_intro = True
             print("Game started!")
         if exit_button.draw_button(SCREEN):
             run = False
@@ -796,7 +836,7 @@ while run:
         # draw background
         draw_BG()
 
-        # drawimng world level
+        # drawing world level
         world.draw_world()
 
         draw_font(f"HEALTH: ", FONT, GREEN, 10,15)
@@ -851,14 +891,20 @@ while run:
         exit_group.draw(SCREEN)
         exit_group.update()
 
+        if start_intro == True:
+            if introFade.fade():
+                start_intro = False
+                introFade.fade_counter = 0
+                
 
         # updates players action
         if player.Alive:
             screen_scroll, level_completed = player.move(move_left, move_right)
             bg_scroll -= screen_scroll
-
+            # check if level is completed, resets and moves to next level
             if level_completed:
                 level += 1
+                start_intro = True
                 bg_scroll = 0
                 world_data = restart_game()
                 if level <= MAX_LEVELS:
@@ -896,22 +942,29 @@ while run:
             else:
                 player.update_action(0)#0 idle action
         else:
+            # activates when player dies
+            pygame.mixer.music.set_volume(0.0)
             screen_scroll = 0
-            if restart_button.draw_button(SCREEN):
-                bg_scroll = 0
-                
-                #empty world data
-                world_data = restart_game()
-                # loads world data
-                with open(f"Level_{level}_data_csv", "r", newline = '') as csvfile:
-                    reader = csv.reader(csvfile, delimiter = ',')
-                    for y, row in enumerate(reader):
-                        for x, col in enumerate(row):
-                            world_data[y][x] = int(col)
-                    # initializing world 
-                    world = World()
-                    player, health_bar = world.update_world(world_data)
-                    print("Game restarted!")
+            if deathFade.fade():
+                if restart_button.draw_button(SCREEN):
+                    pygame.mixer.music.set_volume(0.1)
+                    pygame.mixer.music.play(-1, 0.0, 5000)
+                    deathFade.fade_counter = 0
+                    start_intro = True
+                    bg_scroll = 0
+                    
+                    #empty world data
+                    world_data = restart_game()
+                    # loads world data
+                    with open(f"Level_{level}_data_csv", "r", newline = '') as csvfile:
+                        reader = csv.reader(csvfile, delimiter = ',')
+                        for y, row in enumerate(reader):
+                            for x, col in enumerate(row):
+                                world_data[y][x] = int(col)
+                        # initializing world 
+                        world = World()
+                        player, health_bar = world.update_world(world_data)
+                        print("Game restarted!")
 
     for event in pygame.event.get():
         # quit game
@@ -932,6 +985,7 @@ while run:
                 throw = True
             if event.key == pygame.K_w and player.Alive:
                 player.jump = True
+                jump_fx.play()
             if event.key == pygame.K_ESCAPE:
                 run = False
 
@@ -953,30 +1007,6 @@ while run:
 
     # updating frames
     pygame.display.update()
-
-    '''pressed_key = pygame.key.get_pressed()
-            
-    #all movements
-    if pressed_key[pygame.K_d] and player.velocity + player.player_pos.width + player.x_position <= SCREEN_WIDTH:
-        player.x_position += player.velocity
-
-    if pressed_key[pygame.K_a] and player.x_position - player.velocity  >= 0:
-        player.x_position -= player.velocity
-
-    if pressed_key[pygame.K_w] and player.y_position - player.velocity - player.player_pos.height >= 0:
-        player.y_position -= player.velocity
-
-    if pressed_key[pygame.K_s] and player.y_position + player.velocity + player.player_pos.height < SCREEN_HEIGHT: 
-        player.y_position += player.velocity
-
-    if pressed_key[pygame.K_ESCAPE]:
-        run = False'''
-    
-    
-    '''player.player_pos = player.char_image.get_rect(center=(player.x_position,player.y_position))
-    SCREEN.blit(player.char_image,player.player_pos)
-
-    pygame.display.flip()'''
 
 pygame.quit()
 
