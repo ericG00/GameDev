@@ -801,7 +801,7 @@ for x in range(ROWS + 1):
     world_data.append(row)
 
 # load data in from a file
-with open(f"Level_{level}_data_csv", "r", newline = '') as csvfile:
+with open(f"/Users/eric.m.gichohi/GameTraining/levels/Level_{level}_data_csv", "r", newline = '') as csvfile:
     reader = csv.reader(csvfile, delimiter = ',')
     for y, row in enumerate(reader):
         for x, col in enumerate(row):
@@ -909,7 +909,7 @@ while run:
                 world_data = restart_game()
                 if level <= MAX_LEVELS:
                     # loads world data
-                    with open(f"Level_{level}_data_csv", "r", newline = '') as csvfile:
+                    with open(f"/Users/eric.m.gichohi/GameTraining/levels/Level_{level}_data_csv", "r", newline = '') as csvfile:
                         reader = csv.reader(csvfile, delimiter = ',')
                         for y, row in enumerate(reader):
                             for x, col in enumerate(row):
@@ -956,7 +956,7 @@ while run:
                     #empty world data
                     world_data = restart_game()
                     # loads world data
-                    with open(f"Level_{level}_data_csv", "r", newline = '') as csvfile:
+                    with open(f"/Users/eric.m.gichohi/GameTraining/levels/Level_{level}_data_csv", "r", newline = '') as csvfile:
                         reader = csv.reader(csvfile, delimiter = ',')
                         for y, row in enumerate(reader):
                             for x, col in enumerate(row):
