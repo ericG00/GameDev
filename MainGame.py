@@ -828,10 +828,8 @@ while run:
         if start_button.draw_button(SCREEN):
             start_game = True
             start_intro = True
-            print("Game started!")
         if exit_button.draw_button(SCREEN):
             run = False
-            print("Game exit!")
 
     else:
         # draw background
