@@ -16,7 +16,7 @@ SCREEN_HEIGHT = int(SCREEN_WIDTH * 0.5)
 
 # initialzing screen and game name
 SCREEN = pygame.display.set_mode((SCREEN_WIDTH,SCREEN_HEIGHT))
-pygame.display.set_caption("Black Jesus ressurect")
+pygame.display.set_caption("Black Jesus ressurect BETA")
 
 CLOCK = pygame.time.Clock()
 FPS = 60
@@ -138,9 +138,9 @@ def draw_BG():
     
     for x in range(4):
         SCREEN.blit(sky, ((x * image_width) - bg_scroll * 0.4, 0))
-        SCREEN.blit(mountain, ((x * image_width) -bg_scroll * 0.6, SCREEN_HEIGHT - mountain.get_height() - 250))
-        SCREEN.blit(pine_2, ((x * image_width) -bg_scroll * 0.8, SCREEN_HEIGHT - pine_2.get_height() - 25))
-        SCREEN.blit(pine_1, ((x * image_width) -bg_scroll * 1, SCREEN_HEIGHT - pine_1.get_height() + 5))
+        SCREEN.blit(mountain, ((x * image_width) -bg_scroll * 0.6, SCREEN_HEIGHT - mountain.get_height() - 200))
+        SCREEN.blit(pine_2, ((x * image_width) -bg_scroll * 0.8, SCREEN_HEIGHT - pine_2.get_height() - 30))
+        SCREEN.blit(pine_1, ((x * image_width) -bg_scroll * 1, SCREEN_HEIGHT - pine_1.get_height() + 50))
 
 
 def draw_font(text, font, text_colour, x , y):
@@ -171,7 +171,7 @@ class Character(pygame.sprite.Sprite):
         self.update_time = pygame.time.get_ticks()
         self.action = 0
 
-        #ai variables
+        #AI variables 
         self.move_counter = 0
         self.idling = False
         self.idle_counter = 0
@@ -779,8 +779,8 @@ introFade = ScreenFade(1, BLACK, 5)
 deathFade = ScreenFade(2, RED, 6)
 
 # initialze buttons
-start_button = Button_main.Button((SCREEN_WIDTH // 2) - 300, 200, start_image , 1)
-exit_button = Button_main.Button((SCREEN_WIDTH // 2) + 50, 200, exit_image , 1)
+start_button = Button_main.Button((SCREEN_WIDTH // 2) - 110 , 100, start_image , 0.9)
+exit_button = Button_main.Button((SCREEN_WIDTH // 2) - 100, 250, exit_image , 1)
 restart_button = Button_main.Button((SCREEN_WIDTH // 2) -105, 230, restart_image , 2)
 
 # sprite Groups, quicker way to update and draw
@@ -821,7 +821,8 @@ while run:
 
     # main menu
     if start_game == False:
-        SCREEN.fill(GREEN)
+        draw_BG()
+        #SCREEN.fill(GREEN)
 
         #main menu buttons
         if start_button.draw_button(SCREEN):
