@@ -24,7 +24,7 @@ FPS = 60
 
 # game constant variables
 GRAVITY = 0.75
-MAX_LEVELS = 2
+MAX_LEVELS = 3
 
 # amount of tiles, rows, colums and tile size
 TILE_TYPES = 20
@@ -59,6 +59,8 @@ grenade_fx = pygame.mixer.Sound('/Users/eric.m.gichohi/Documents/shooter_assets/
 grenade_fx.set_volume(0.05)
 shot_fx = pygame.mixer.Sound('/Users/eric.m.gichohi/Documents/shooter_assets/audio/shot.wav')
 shot_fx.set_volume(0.05)
+sword_fx = pygame.mixer.Sound('/Users/eric.m.gichohi/Documents/shooter_assets/audio/sword.mp3')
+sword_fx.set_volume(0.1)
 
 # storing tiles in a list
 tile_images = []
@@ -85,7 +87,7 @@ exit_image = pygame.image.load("/Users/eric.m.gichohi/Documents/shooter_assets/i
 slash_image = pygame.image.load("/Users/eric.m.gichohi/Documents/player/Attack/0.png").convert_alpha()
 weapon_image = pygame.image.load("/Users/eric.m.gichohi/Documents/player/all_sprites/FB00_nyknck/FB00_nyknck/FB001.png").convert_alpha()
 throwable_image = pygame.image.load("/Users/eric.m.gichohi/Documents/player/Explosions/grenade.png").convert_alpha()
-health_image = pygame.transform.scale(pygame.image.load("/Users/eric.m.gichohi/Documents/player/world_design/heart.png"),(15,15))
+#health_image = pygame.transform.scale(pygame.image.load("/Users/eric.m.gichohi/Documents/player/world_design/heart.png"),(15,15))
 
 #pick-up boxes images
 health_box_image =  pygame.transform.scale(pygame.image.load("/Users/eric.m.gichohi/Documents/Tiles/19.png"),(25,25))
@@ -236,7 +238,7 @@ class Character(pygame.sprite.Sprite):
         # jumping
         if self.jump == True and self.in_the_air == False:
             self.jump_velocity = -15
-            self.jump == False
+            self.jump = False
             self.in_the_air = True
 
 
@@ -437,13 +439,13 @@ class World():
                     # player data initialized
                     elif tile == 15:
                         # initialzing player
-                        player =  Character("player", y * TILE_SIZE,  x * TILE_SIZE, 2, 5, 10, 5)
+                        player =  Character("player", y * TILE_SIZE,  x * TILE_SIZE, 2, 5, 25, 5)
                         health_bar = HealthBar(105, 15, player.health, player.health)
                     
                     # enemy data initialized
                     elif tile == 16:
                         # initialzing enemy
-                        enemy = Character("enemy", y * TILE_SIZE,  x * TILE_SIZE, 2, 2, 5, 5)
+                        enemy = Character("enemy", y * TILE_SIZE,  x * TILE_SIZE, 2, 2, 25, 5)
                         enemy_group.add(enemy)
                     # initialize ammo box
                     elif tile == 17:
@@ -642,7 +644,8 @@ class SlashAttack(pygame.sprite.Sprite):
                 self.kill()
 
         # checks for collision on enemy
-        if pygame.sprite.spritecollide(enemy, slashAttack_group, False):
+        for enemy in enemy_group:
+            if pygame.sprite.spritecollide(enemy, slashAttack_group, False):
                 if enemy.Alive:
                     enemy.health -= 5
                     print(enemy.health)  
@@ -653,7 +656,7 @@ class Throwable(pygame.sprite.Sprite):
         pygame.sprite.Sprite.__init__(self)
         self.timer = 70
         self.y_velocity = -10
-        self.throw_speed = 10
+        self.throw_speed = 6
         self.image = throwable_image
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
@@ -697,8 +700,8 @@ class Throwable(pygame.sprite.Sprite):
             explosion_group.add(explosion)
 
         # explosion radius damage
-            if (abs(self.rect.centerx - player.rect.centerx) < TILE_SIZE * 2  and  
-            abs(self.rect.centery - player.rect.centery) < TILE_SIZE * 2):
+            if (abs(self.rect.centerx - player.rect.centerx) < TILE_SIZE * 3  and  
+            abs(self.rect.centery - player.rect.centery) < TILE_SIZE * 3):
                 # depleting health
                 player.health -= 50
                 self.kill()
@@ -822,7 +825,15 @@ while run:
     # main menu
     if start_game == False:
         draw_BG()
-        #SCREEN.fill(GREEN)
+        draw_font(f"GAME MOVEMENT: ", FONT, RED, 20,50)
+        draw_font(f"RIGHT: A", FONT, WHITE, 20,80)
+        draw_font(f"LEFT: D", FONT, WHITE, 20,100)
+        draw_font(f"JUMP: W", FONT, WHITE, 20,120)
+
+        draw_font(f"THROWABLES : Q", FONT, WHITE, 20,150)
+        draw_font(f"FIRE: SPACEBAR", FONT, WHITE, 20,170)
+        draw_font(f"SLASH: K", FONT, WHITE, 20,190)
+
 
         #main menu buttons
         if start_button.draw_button(SCREEN):
@@ -980,6 +991,7 @@ while run:
                 attack = True
             if event.key == pygame.K_k:
                 slash_attack = True
+                sword_fx.play()
             if event.key == pygame.K_q:
                 throw = True
             if event.key == pygame.K_w and player.Alive:
@@ -1001,8 +1013,7 @@ while run:
                 attacking_active = False
             if event.key == pygame.K_k:
                 slash_attack = False
-            if event.key == pygame.K_w and player.Alive:
-                player.jump = False
+
 
     # updating frames
     pygame.display.update()
